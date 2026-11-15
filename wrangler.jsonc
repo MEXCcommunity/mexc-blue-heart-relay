@@ -2,6 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "mexc-blue-heart-relay",
   "main": "./src/index.ts",
+  "workers_dev": true,
   "compatibility_date": "2026-05-15",
   "assets": {
     "directory": "./dist",
@@ -13,7 +14,7 @@
       "binding": "DB",
       "database_name": "mexc-blue-heart-relay",
       // Replace this placeholder with the ID of a newly created D1 database for remote deployment.
-      "database_id": "00000000-0000-4000-8000-000000000000",
+      "database_id": "eaa36e94-5fc5-4a4c-b149-16179367e370",
       "migrations_dir": "./migrations"
     }
   ]
