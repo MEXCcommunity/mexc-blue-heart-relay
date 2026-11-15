@@ -1,0 +1,21 @@
+{
+  "name": "mexc-blue-heart-relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "build": "node prototype/render.mjs",
+    "check": "tsc --noEmit && node --check prototype/relay.js",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "db:remote": "wrangler d1 migrations apply DB --remote",
+    "dev": "npm run build && wrangler dev --local --ip 127.0.0.1",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260515.1",
+    "typescript": "5.9.3",
+    "wrangler": "4.92.0"
+  },
+  "overrides": { "miniflare": { "sharp": "0.35.4" } }
+}
