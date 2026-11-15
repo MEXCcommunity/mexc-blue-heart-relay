@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "mexc-blue-heart-relay",
+  "main": "./src/index.ts",
+  "compatibility_date": "2026-05-15",
+  "assets": {
+    "directory": "./dist",
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+  },
+  "rules": [{ "type": "Text", "globs": ["**/admin.html"], "fallthrough": true }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mexc-blue-heart-relay",
+      // Replace this placeholder with the ID of a newly created D1 database for remote deployment.
+      "database_id": "00000000-0000-4000-8000-000000000000",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1120">
+<meta name="description" content="Light up a pixel on the MEXC map, leave a note, and pass the blue heart to a friend.">
+<meta property="og:title" content="MEXC Pixel Map | Blue Heart Relay">
+<meta property="og:description" content="Light up the MEXC pixel map and pass it on. 💪💙">
+<title>MEXC Pixel Map | Blue Heart Relay</title>
+<style>
+:root { color-scheme: dark; --base:#0b1120; --panel:#111a2c; --line:#25334c; --ink:#f0f5ff; --muted:#a1aec6; --blue:#5092ff; --accent:#4382ff; --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace; }
+*,*::before,*::after { box-sizing:border-box; }
+[hidden] { display:none !important; }
+body { margin:0; background:var(--base); color:var(--ink); font:15px/1.5 "Inter",system-ui,sans-serif; }
+button,input,textarea { font:inherit; }
+button { color:inherit; cursor:pointer; }
+button:disabled { cursor:wait; opacity:.65; }
+button:focus-visible,input:focus-visible,textarea:focus-visible { outline:2px solid #a4c8ff; outline-offset:4px; }
+svg { width:20px; height:20px; display:block; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.shell { width:min(1200px, calc(100% - 72px)); margin-inline:auto; }
+header { border-bottom:1px solid #1d2b41; }
+nav { display:flex; min-height:70px; align-items:center; justify-content:space-between; gap:16px; }
+.brand { display:flex; align-items:center; gap:11px; font-weight:750; letter-spacing:.05em; }
+.brand-mark { display:grid; place-items:center; width:35px; height:35px; background:#162b50; border:1px solid #294a7c; border-radius:9px; color:#79aeff; }
+.brand-mark svg { fill:currentColor; stroke:none; width:22px; height:22px; }
+.nav-tools { display:flex; gap:12px; align-items:center; }
+.control { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:9px 13px; border:1px solid var(--line); border-radius:8px; background:#142035; min-height:40px; font-weight:650; font-size:13px; }
+.control:hover { background:#1b2c49; border-color:#385581; }
+.control svg { width:16px; height:16px; }
+.control.quiet { background:transparent; border-color:transparent; color:var(--muted); }
+.control.quiet:hover { background:#152239; color:var(--ink); }
+.hero { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin:33px 0 26px; }
+h1,h2,p { margin:0; }
+h1 { font-size:clamp(37px,5.1vw,67px); letter-spacing:-.065em; line-height:1.13; font-weight:820; }
+h1 span { color:#89b6ff; }
+.hero p { color:var(--muted); margin-top:11px; font-size:15px; }
+.hero-emoji { font-size:35px; line-height:1; padding:0 2px 5px 0; white-space:nowrap; letter-spacing:.02em; }
+.layout { display:grid; grid-template-columns:minmax(0,1fr) 306px; gap:16px; align-items:start; }
+.panel { border:1px solid var(--line); border-radius:15px; background:var(--panel); }
+.map-panel { overflow:hidden; background:#101b2e; }
+.map-head,.map-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:0 17px; min-height:51px; }
+.map-head { border-bottom:1px solid #22324b; }
+.map-head h2,.notes-head h2 { display:flex; align-items:center; gap:9px; font-size:14px; font-weight:750; }
+.map-head svg { width:16px; height:16px; color:#83aaf0; }
+.canvas-wrap { position:relative; overflow:hidden; background:radial-gradient(ellipse at 49% 51%,#193358 0%,#10233f 42%,#0c192d 78%); aspect-ratio:800/466; isolation:isolate; }
+.canvas-wrap::after { content:""; position:absolute; inset:0; pointer-events:none; box-shadow:inset 0 0 55px #070f21a6; z-index:-1; }
+.camera { position:absolute; inset:0; transform-origin:center center; transition:transform 370ms cubic-bezier(.2,.65,.3,1); }
+#art { width:100%; height:100%; position:absolute; display:block; inset:0; }
+.marker { position:absolute; transform:translate(-50%,-121%); width:37px; height:37px; border:1px solid #5589da; border-radius:10px; display:grid; place-items:center; background:#182e4d; box-shadow:0 3px 15px #060c1cb0; padding:0; }
+.marker::after { content:""; position:absolute; width:7px; height:7px; background:#182e4d; border-right:1px solid #5589da; border-bottom:1px solid #5589da; bottom:-4px; transform:rotate(45deg); }
+.marker:hover,.marker:focus-visible,.marker.active { background:#244975; border-color:#9ac3ff; z-index:3; }
+.marker .heart { font-size:17px; line-height:1; }
+.marker.selected { border-color:#b8d6ff; box-shadow:0 0 20px #4382ff8e; }
+.marker.selected::after { border-color:#b8d6ff; }
+.map-controls { position:absolute; bottom:14px; right:14px; z-index:4; display:flex; gap:7px; }
+.icon-button { display:grid; place-items:center; min-width:36px; height:36px; border:1px solid #31476b; border-radius:7px; background:#142239; padding:0 8px; }
+.icon-button svg { width:16px; height:16px; }
+.icon-button:hover { background:#203756; }
+.map-footer { border-top:1px solid #22324b; font-size:11px; color:#a2b0c9; }
+.legend { display:flex; align-items:center; flex-wrap:wrap; gap:13px; }
+.legend span { display:inline-flex; gap:6px; align-items:center; }
+.square { width:7px; height:7px; display:inline-block; background:#64a0ff; box-shadow:0 0 8px #66a4ff66; }
+.square.wait { background:#30466a; box-shadow:none; }
+.map-footer small { color:#8497b8; font-size:11px; white-space:nowrap; }
+.tip { position:absolute; z-index:6; width:min(238px, calc(100% - 24px)); padding:12px 13px; background:#172742; border:1px solid #486c9f; border-radius:11px; box-shadow:0 10px 30px #050a16ba; pointer-events:none; }
+.tip strong { font-size:12px; color:#b7d4ff; display:block; }
+.tip p { margin-top:5px; font-size:13px; overflow-wrap:anywhere; }
+.tip small { margin-top:3px; display:block; color:#aab9d3; font-size:10px; }
+.sidebar { display:grid; gap:14px; }
+.stats { padding:19px 19px 16px; }
+.stats-top { display:flex; justify-content:space-between; align-items:center; color:#bfd0ee; }
+.stats-top h2 { font-size:13px; font-weight:680; }
+.stats-top svg { color:#77a9ff; width:17px; height:17px; }
+.power { font:700 49px/1.1 var(--mono); letter-spacing:-.09em; font-variant-numeric:tabular-nums; margin:7px 0 11px; }
+.progress-label { display:flex; justify-content:space-between; gap:8px; font-size:11px; color:#a2b0ca; margin-bottom:7px; }
+.progress-label output { font-family:var(--mono); color:#c4d9ff; }
+.progress { height:6px; background:#24334e; border-radius:8px; overflow:hidden; }
+.progress i { display:block; height:100%; width:0; border-radius:8px; background:linear-gradient(90deg,#4579fd,#82c4ff); transition:width 500ms ease; }
+.primary { min-height:47px; background:#3677f3; border:1px solid #518cff; border-radius:8px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 13px; color:white; }
+.primary:hover { background:#4b89ff; }
+#light { width:100%; margin-top:18px; }
+#light.joined { background:#1a355a; border-color:#3b629c; color:#deebff; }
+#light.joined:hover { background:#22446f; }
+.light-emoji { font-size:19px; line-height:1; }
+#stats-hint { margin-top:9px; font-size:11px; color:#a2b0ca; min-height:17px; }
+.member-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px; }
+.member-actions .control { padding-inline:7px; font-size:12px; }
+.notes { padding:14px 16px 10px; }
+.notes-head { display:flex; justify-content:space-between; align-items:center; gap:5px; padding-bottom:5px; }
+.notes-empty { padding:6px 0; color:var(--muted); font-size:12px; }
+.text-button { border:0; background:transparent; color:#8ebaff; font-size:12px; font-weight:650; padding:7px 0 7px 8px; }
+.text-button:hover { color:white; }
+.note-row { display:flex; gap:10px; width:100%; text-align:left; border:0; border-top:1px solid #24334d; background:transparent; padding:10px 0; }
+.note-row:hover .note-copy { color:#bed8ff; }
+.note-icon { display:grid; flex:none; place-items:center; width:28px; height:28px; border-radius:7px; background:#1d3253; font-size:13px; }
+.note-row .note-name { font:650 11px/1.35 var(--mono); color:#a8c8ff; overflow-wrap:anywhere; display:block; }
+.note-copy { display:block; font-size:12px; margin-top:3px; color:#dbe5f7; overflow-wrap:anywhere; }
+.page-footer { margin:16px 0 24px; display:flex; justify-content:space-between; gap:15px; color:#97a6c0; font-size:11px; }
+dialog { width:min(480px,calc(100% - 28px)); max-height:calc(100dvh - 36px); padding:0; border:1px solid #3b5279; border-radius:15px; background:#141f34; color:var(--ink); box-shadow:0 20px 80px #060b18c4; }
+dialog::backdrop { background:#060b16bd; }
+.dialog-inner { padding:20px; }
+.dialog-head { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:12px; }
+.dialog-head h2 { font-size:19px; }
+.dialog-body { color:#b5c5df; font-size:13px; }
+.dialog-body p+p { margin-top:10px; }
+label.field { display:block; font-weight:650; font-size:13px; margin-top:13px; }
+.field-hint { margin-top:5px; color:#aab9d3; font-size:12px; }
+input[type=text],textarea { width:100%; display:block; padding:10px 11px; margin-top:5px; border:1px solid #3a5176; border-radius:8px; color:#eef4ff; background:#0e182b; }
+textarea { resize:vertical; min-height:76px; }
+label.check { display:flex; gap:8px; align-items:flex-start; margin-top:10px; font-size:12px; color:#b5c5df; }
+label.check input { accent-color:#4382ff; }
+.dialog-actions { margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.error { color:#ffc3c3; margin-top:8px; font-size:12px; }
+#toast { position:fixed; z-index:8; bottom:20px; left:50%; transform:translateX(-50%); width:max-content; max-width:calc(100% - 30px); border:1px solid #486c9f; border-radius:10px; background:#172742; box-shadow:0 8px 28px #070c1dc0; padding:10px 15px; font-size:13px; text-align:center; }
+.flight { position:fixed; z-index:10; pointer-events:none; font-size:24px; }
+@media(max-width:980px) { .shell { width:calc(100% - 38px); } .layout { grid-template-columns:minmax(0,1fr) 263px; gap:12px; } .stats { padding-inline:15px; } }
+@media(max-width:740px) { .shell { width:calc(100% - 26px); } nav { min-height:58px; } .nav-tools { gap:4px; } .nav-tools .control { padding:7px 9px; min-height:36px; } .hero { margin:21px 0 17px; gap:7px; } .hero p { font-size:12px; margin-top:7px; } .hero-emoji { font-size:24px; padding-bottom:3px; } .layout { grid-template-columns:minmax(0,1fr); gap:11px; } .sidebar { gap:11px; } .canvas-wrap { aspect-ratio:800/485; } .map-head,.map-footer { min-height:41px; padding-inline:12px; } .map-controls { bottom:7px; right:7px; gap:4px; } .icon-button { min-width:34px; height:34px; } .marker { width:30px; height:30px; border-radius:8px; } .marker .heart { font-size:14px; } .stats { padding:14px; } .power { font-size:40px; margin:3px 0 8px; } #light { margin-top:13px; } .page-footer { margin-top:12px; } }
+@media(max-width:420px) { nav { gap:8px; } .brand { gap:7px; font-size:13px; letter-spacing:0; } .brand-mark { width:29px; height:29px; flex:none; } .nav-tools { gap:3px; flex:none; } .nav-tools .control { font-size:12px; padding-inline:7px; } .map-footer small { font-size:10px; } }
+@media(max-width:365px) { .hero-emoji,.map-footer small { display:none; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; animation:none!important; } }
+</style>
+</head>
+<body>
+<header>
+  <nav class="shell" aria-label="Activity navigation">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 5h6v3h6V5h6v3h2v6h-3v3h-3v3h-3v2h-4v-2H7v-3H4v-3H1V8h2z"/></svg></span>Blue Heart Relay</div>
+    <div class="nav-tools">
+      <button class="control quiet" type="button" id="help-open">How to play</button>
+      <button class="control" type="button" id="share-open"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15V3m-4 4 4-4 4 4M6 11H4v9h16v-9h-2"/></svg>Share</button>
+    </div>
+  </nav>
+</header>
+<main class="shell">
+  <div class="hero"><div><h1>Light up <span>MEXC</span></h1><p>Light up a pixel and pass the 💪💙 on.</p></div><div class="hero-emoji" aria-hidden="true">💪💙</div></div>
+  <div class="layout">
+    <section class="panel map-panel" aria-labelledby="map-title">
+      <div class="map-head"><h2 id="map-title"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/></svg>Community pixel map</h2></div>
+      <div class="canvas-wrap" id="viewport">
+        <div class="camera" id="camera">
+          <canvas id="art" aria-label="MEXC logo built from pixels lit by the community"></canvas>
+          <div id="markers" aria-label="Community notes on the map"></div>
+        </div>
+        <div id="tip" class="tip" hidden><strong id="tip-name"></strong><small id="tip-label" hidden></small><p id="tip-message"></p></div>
+        <div class="map-controls" aria-label="Map zoom">
+          <button class="icon-button" id="zoom-out" type="button" aria-label="Zoom out"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+          <button class="icon-button" id="zoom-in" type="button" aria-label="Zoom in"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-7-7v14"/></svg></button>
+          <button class="icon-button" id="zoom-reset" type="button" aria-label="Reset map view"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></svg></button>
+        </div>
+      </div>
+      <div class="map-footer"><div class="legend"><span><i class="square"></i>Lit pixels</span><span><i class="square wait"></i>Unlit pixels</span></div><small id="map-notes-hint" hidden>💙 Select a heart to read a note</small></div>
+    </section>
+    <aside class="sidebar" aria-label="Join the Blue Heart Relay">
+      <section class="panel stats">
+        <div class="stats-top"><h2>Community Power</h2><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m13 2-8 12h6l-1 8 9-12h-6l1-8z"/></svg></div>
+        <div id="power" class="power" aria-live="polite">—</div>
+        <div class="progress-label"><span>Pixels lit</span><output id="progress-text">—</output></div>
+        <div class="progress" id="progress" role="progressbar" aria-label="Pixels lit" aria-valuemin="0" aria-valuemax="__CAPACITY_RAW__" aria-valuenow="0"><i></i></div>
+        <button type="button" class="primary" id="light" disabled><span class="light-emoji" aria-hidden="true">💪💙</span><span id="light-label">Light up a pixel</span></button>
+        <p id="stats-hint" aria-live="polite">One pixel per browser.</p>
+        <div class="member-actions" id="member-actions" hidden>
+          <button type="button" id="note-open" class="control">Leave a note</button>
+          <button type="button" id="share-pixel" class="control">Share my pixel</button>
+        </div>
+      </section>
+      <section class="panel notes" aria-labelledby="notes-title">
+        <div class="notes-head"><h2 id="notes-title">Map notes</h2><button type="button" class="text-button" id="notes-open" hidden>Recent notes ↗</button></div>
+        <p class="notes-empty" id="notes-empty" hidden>Light up a pixel to leave the first note.</p>
+        <div id="latest"></div>
+      </section>
+    </aside>
+  </div>
+  <footer class="page-footer" id="footer-note" hidden>Offline map · Pixels and notes are saved in this browser</footer>
+</main>
+
+<dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-inner">
+  <div class="dialog-head"><h2 id="help-title">How to play</h2><button type="button" class="icon-button" data-close aria-label="Close">×</button></div>
+  <div class="dialog-body"><p>Help light up all __CAPACITY__ pixels in the MEXC logo. Each browser can light one pixel and add 1 to Community Power.</p><p>After lighting a pixel, you can leave a short note. Adding your X handle is optional, and handles are not verified.</p><p>Share your pixel link so a friend can find your spot on the map.</p></div>
+</div></dialog>
+<dialog id="note-dialog" aria-labelledby="note-title"><div class="dialog-inner">
+  <div class="dialog-head"><h2 id="note-title">Leave a note for the community</h2><button type="button" class="icon-button" data-close aria-label="Close">×</button></div>
+  <form id="note-form">
+    <p class="dialog-body" id="note-disclosure">Your note will appear on the community map. You can post anonymously.</p>
+    <label class="field">Note <textarea id="note-input" maxlength="160" rows="2" required placeholder="What would you like to say to the community?"></textarea></label>
+    <label class="field">X handle (optional) <input type="text" id="handle-input" maxlength="16" autocomplete="off" placeholder="@username"></label>
+    <label class="check" id="handle-consent-row" hidden><input id="handle-consent" type="checkbox">I agree to display my X handle with this note.</label>
+    <label class="field">MEXC UID (optional) <input type="text" id="uid-input" inputmode="numeric" maxlength="32" autocomplete="off" placeholder="Enter your MEXC UID" aria-describedby="uid-hint"></label>
+    <p class="field-hint" id="uid-hint">Saved with your note for authorized campaign staff.</p>
+    <p class="error" id="note-error" role="alert" hidden></p>
+    <div class="dialog-actions"><button type="submit" id="save-note" class="primary">Save note</button><button type="button" id="remove-note" class="control quiet" hidden>Remove note</button></div>
+  </form>
+</div></dialog>
+<dialog id="share-dialog" aria-labelledby="share-title"><div class="dialog-inner">
+  <div class="dialog-head"><h2 id="share-title">Share my pixel</h2><button type="button" class="icon-button" data-close aria-label="Close">×</button></div>
+  <p class="dialog-body" id="share-help"></p>
+  <label class="field">Share message <textarea id="share-text" rows="3"></textarea></label>
+  <div class="dialog-actions"><button type="button" id="copy-share" class="primary">Copy message</button><button type="button" id="copy-link" class="control">Copy link</button><button type="button" id="copy-emoji" class="control">Copy 💪💙</button></div>
+</div></dialog>
+<dialog id="notes-dialog" aria-labelledby="all-title"><div class="dialog-inner">
+  <div class="dialog-head"><h2 id="all-title">Map notes</h2><button type="button" class="icon-button" data-close aria-label="Close">×</button></div>
+  <div id="all-notes"></div>
+</div></dialog>
+<p id="toast" role="status" hidden></p>
+<script>
+__SCRIPT__
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+node_modules/
+/dist/
+/dist-pages/
+/.wrangler/
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+*.sqlite*
+*.db
+*.db-*
+*.log
+.DS_Store

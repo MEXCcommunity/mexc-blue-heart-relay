@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campaign analytics | MEXC Blue Heart Relay</title>
+<style>
+:root { color-scheme: dark; --bg:#0a1020; --panel:#141f33; --line:#283c5e; --text:#eef4ff; --muted:#a6b7d2; --blue:#79adff; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 Inter,system-ui,sans-serif; }
+main { width:min(1080px,calc(100% - 36px)); margin:clamp(24px,6vw,72px) auto; }
+h1,h2,p { margin:0; } h1 { font-size:clamp(30px,5vw,48px); letter-spacing:-.035em; }
+h2 { font-size:18px; } header p { margin-top:4px; color:var(--blue); font-weight:650; }
+section { margin-top:22px; } form { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+label { display:grid; gap:5px; color:var(--muted); font-size:13px; }
+input,select,button,.download { min-height:42px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); font:inherit; }
+button,.download { cursor:pointer; font-weight:700; } button { background:#326de3; }
+.signout { background:var(--panel); }
+.download { display:inline-flex; align-items:center; color:var(--blue); text-decoration:none; }
+:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+[hidden] { display:none!important; }
+#status { color:var(--muted); margin-top:13px; min-height:24px; }
+#summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:12px 0 9px; }
+.metric { padding:15px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+.metric span { display:block; color:#c0cee4; font-size:12px; }
+.metric strong { font-size:26px; font-variant-numeric:tabular-nums; }
+.hint { color:var(--muted); font-size:13px; }
+.section-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+.actions { display:flex; flex-wrap:wrap; gap:7px; }
+.table-scroll { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+table { width:100%; min-width:865px; border-collapse:collapse; background:var(--panel); font-variant-numeric:tabular-nums; }
+th,td { text-align:right; padding:10px; border-bottom:1px solid var(--line); font-size:13px; }
+th { color:#c0cee4; } th:first-child,td:first-child { text-align:left; } tr:last-child td { border-bottom:0; }
+#empty { margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="section-head">
+    <div><h1>Campaign analytics</h1><p>💪💙 MEXC Blue Heart Relay</p></div>
+    <form id="sign-out-form" action="/admin/logout" method="post" hidden><button class="signout" type="submit">Sign out</button></form>
+  </div>
+</header>
+<section aria-label="Report filters">
+<form id="filters">
+  <label>From (UTC+8)<input type="date" name="from"></label>
+  <label>Through (UTC+8)<input type="date" name="to"></label>
+  <label>First arrival source
+    <select name="source">
+      <option value="">All sources</option><option value="direct">Direct</option><option value="x">X</option>
+      <option value="telegram">Telegram</option><option value="discord">Discord</option><option value="email">Email</option>
+      <option value="community">Community</option><option value="partner">Partner</option><option value="other">Other</option>
+      <option value="relay">Pixel relay</option>
+    </select>
+  </label>
+  <button type="submit">Apply filters</button>
+</form>
+<p id="status" role="status"></p>
+</section>
+<div id="report" hidden>
+  <section aria-labelledby="overview-title">
+    <h2 id="overview-title">Participation overview</h2>
+    <div id="summary"></div>
+    <p class="hint">Counts are per browser. Filters use the first recorded arrival date and source. Later actions still count toward that arrival group. Rates with no eligible denominator are shown as a dash.</p>
+  </section>
+  <section aria-labelledby="channel-title">
+    <div class="section-head">
+      <h2 id="channel-title">Channels</h2>
+      <div class="actions"><a class="download" id="csv-link" download>Download channels CSV</a><a class="download" id="uids-link" download hidden>Download UID CSV</a></div>
+    </div>
+    <div class="table-scroll" tabindex="0" aria-label="Channel statistics">
+      <table>
+        <thead><tr><th scope="col">Source</th><th scope="col">Visitors</th><th scope="col">Eligible</th><th scope="col">Clicked</th><th scope="col">Click rate</th><th scope="col">Lit</th><th scope="col">Light rate</th><th scope="col">With UID</th><th scope="col">Unique UIDs</th><th scope="col">UID fill rate</th></tr></thead>
+        <tbody id="channel-rows"></tbody>
+      </table>
+    </div>
+    <p class="hint" id="empty" hidden>No arrivals were recorded for these filters.</p>
+  </section>
+</div>
+</main>
+<script>
+const byId = id => document.getElementById(id);
+const form = byId("filters");
+const format = Intl.NumberFormat("en-US");
+const percent = (number, total) => total ? (100 * number / total).toFixed(1) + "%" : "—";
+let pending = 0;
+
+function render(data, query) {
+  const m = data.total;
+  const values = [
+    ["Visitors", format.format(m.visits)], ["Eligible visitors", format.format(m.eligible)],
+    ["Clicked", format.format(m.clicks)], ["Click rate", percent(m.clicks, m.eligible)],
+    ["Pixels lit", format.format(m.lights)], ["Light conversion", percent(m.lights, m.eligible)],
+    ["With UID", format.format(m.uid_records)], ["Unique UIDs", format.format(m.unique_uids)],
+    ["UID fill rate", percent(m.uid_records, m.lights)], ["Pixel relay conversion", percent(m.relay_lights, m.relay_eligible)],
+  ];
+  byId("summary").replaceChildren(...values.map(([label, value]) => {
+    const card = document.createElement("div");
+    card.className = "metric";
+    const title = document.createElement("span");
+    title.textContent = label;
+    const number = document.createElement("strong");
+    number.textContent = value;
+    card.append(title, number);
+    return card;
+  }));
+  const sourceNames = new Map([...form.elements.source.options].map(option => [option.value, option.textContent]));
+  byId("channel-rows").replaceChildren(...data.channels.map(row => {
+    const tr = document.createElement("tr");
+    for (const value of [
+      sourceNames.get(row.source) ?? row.source, row.visits, row.eligible, row.clicks,
+      percent(row.clicks, row.eligible), row.lights, percent(row.lights, row.eligible),
+      row.uid_records, row.unique_uids, percent(row.uid_records, row.lights),
+    ]) {
+      const td = tr.insertCell();
+      td.textContent = typeof value === "number" ? format.format(value) : value;
+    }
+    return tr;
+  }));
+  byId("empty").hidden = data.channels.length > 0;
+  byId("csv-link").href = "/api/admin/channels.csv" + query;
+  byId("uids-link").href = "/api/admin/uids.csv" + query;
+  byId("uids-link").hidden = !data.canExportUid;
+  byId("sign-out-form").hidden = !data.signedInWithPassword;
+  byId("report").hidden = false;
+}
+
+async function load(event) {
+  event?.preventDefault();
+  const id = ++pending;
+  const query = "?" + new URLSearchParams(new FormData(form));
+  byId("status").textContent = "Loading report…";
+  byId("report").hidden = true;
+  try {
+    const response = await fetch("/api/admin/report" + query, { cache:"no-store" });
+    const data = await response.json().catch(() => null);
+    if (id !== pending) return;
+    if (!response.ok || !data) throw new Error(data?.error || "Could not load the report. Check your team sign-in and try again.");
+    render(data, query);
+    byId("status").textContent = "";
+  } catch (error) {
+    if (id === pending) byId("status").textContent = error.message;
+  }
+}
+
+form.addEventListener("submit", load);
+void load();
+</script>
+</body>
+</html>
