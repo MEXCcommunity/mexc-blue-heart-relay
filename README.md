@@ -36,9 +36,9 @@ git push -u origin main
 
 ## Public GitHub Pages demo
 
-This repository publishes a GitHub Pages demo from the `main` branch. The Pages build uses the static local-only mode: visitors can open the map, light one pixel, and save a note in their own browser. It does not provide a shared counter or cross-visitor relay data because GitHub Pages cannot run the `/api/relay` Worker endpoint.
+The repository includes a GitHub Pages demo at the `main` branch root. The root `index.html` redirects to the prebuilt `dist-pages/index.html`, which uses static local-only mode: visitors can open the map, light one pixel, and save a note in their own browser. It does not provide a shared counter or cross-visitor relay data because GitHub Pages cannot run the `/api/relay` Worker endpoint.
 
-For the full shared map, deploy the Cloudflare Worker and D1 database described below. The GitHub Pages demo is useful for reviewing the interface without configuring Cloudflare.
+To regenerate the Pages file after changing the prototype, run `node prototype/render-pages.mjs` and force-add the generated `dist-pages/index.html`. For the full shared map, deploy the Cloudflare Worker and D1 database described below.
 
 ## Deploy the shared map
 
