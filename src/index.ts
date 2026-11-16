@@ -8,6 +8,7 @@ const tokenFormat = /^[a-f0-9]{32}$/;
 const handleFormat = /^[A-Za-z0-9_]{1,15}$/;
 const uidFormat = /^[0-9]{1,32}$/;
 const maxContributions = mark.length;
+const campaignEndedMessage = "Thank you for participating! The campaign has ended.";
 
 type Pixel = {
   position: number;
@@ -83,7 +84,7 @@ async function updateBoard(request: Request, db: D1Database) {
     await recordArrival(db, browser, referral, input.source, maxContributions, now).run();
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   } else if (input.action === "light") {
-    await db.batch([
+    const [, , insert] = await db.batch([
       recordArrival(db, browser, referral, input.source, maxContributions, now),
       recordClick(db, browser, now),
       db.prepare(`INSERT INTO relay_pixels (browser, share, invited_by, created)
@@ -93,7 +94,11 @@ async function updateBoard(request: Request, db: D1Database) {
         .bind(browser, token(), referral, browser, now, browser, maxContributions),
     ]);
     const result = await board(db, browser, referral);
-    return result.mine ? respond(result) : respond({ error: "The map is full." }, 409);
+    // The same request that lights the last pixel is still a success.
+    if (insert.meta.changes === 0 && result.count >= maxContributions) {
+      return respond({ ...result, code: "campaign_ended", error: campaignEndedMessage }, 409);
+    }
+    return respond(result);
   } else if (input.action === "note") {
     const message = typeof input.message === "string" ? input.message.trim() : "";
     const handle = typeof input.handle === "string" ? input.handle.trim().replace(/^@/, "") : "";

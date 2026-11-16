@@ -41,6 +41,8 @@ const mix = (x, y) => {
 const pixelColor = (i) => ["#5799fd", "#76b4ff", "#68a7ff", "#4084f1", "#88c5ff"][i % 5];
 const positions = brandCells.slice().sort((a, b) => mix(...a) - mix(...b));
 const capacity = positions.length;
+const campaignEndedMessage = "Thank you for participating! The campaign has ended.";
+const campaignEnded = () => state.count >= capacity;
 const number = new Intl.NumberFormat("en-US");
 const position = (entry) => positions[entry.position - 1];
 
@@ -216,6 +218,7 @@ function setZoom(next) {
 }
 function drawState() {
   const amount = state.count;
+  const ended = ready && campaignEnded();
   const lit = Math.min(amount, capacity);
   const percent = lit / capacity * 100;
   $("power").textContent = ready ? number.format(amount) : "—";
@@ -224,16 +227,17 @@ function drawState() {
   $("progress").setAttribute("aria-valuenow", String(lit));
   $("progress").setAttribute("aria-valuetext", `${number.format(lit)} of ${number.format(capacity)} pixels lit`);
   $("progress").firstElementChild.style.width = percent + "%";
-  $("light-label").textContent = state.mine ? "Find my pixel" : amount >= capacity ? "The map is full" : "Light up a pixel";
-  $("light").classList.toggle("joined", Boolean(state.mine));
-  $("light").disabled = busy || !ready || (!state.mine && amount >= capacity);
+  $("light-label").textContent = ended ? "Campaign ended" : state.mine ? "Find my pixel" : "Light up a pixel";
+  $("light").classList.toggle("joined", ended || Boolean(state.mine));
+  $("light").disabled = busy || !ready;
   $("member-actions").hidden = !state.mine;
   $("note-open").textContent = state.mine?.message ? "Edit my note" : "Leave a note";
-  $("stats-hint").textContent = !ready ? "Connecting to the shared map…" : state.mine
+  $("stats-hint").textContent = !ready ? "Connecting to the shared map…" : ended ? campaignEndedMessage : state.mine
     ? (isFile ? "Your pixel is saved in this browser." : `Your link brought in ${number.format(state.relays)} ${state.relays === 1 ? "relay" : "relays"}.`)
     : state.incoming ? "A friend sent you a blue heart." : "One pixel per browser.";
   $("notes-open").hidden = state.notes.length === 0;
   $("notes-empty").hidden = !ready || state.notes.length > 0;
+  $("notes-empty").textContent = ended ? "No map notes yet." : "Light up a pixel to leave the first note.";
   $("map-notes-hint").hidden = !state.notes.length && !state.incoming?.message;
   renderNoteList($("latest"), state.notes.slice(0, 3));
   if ($("notes-dialog").open) renderNoteList($("all-notes"), state.notes);
@@ -311,7 +315,8 @@ async function request(action, input = {}) {
   } : {};
   const response = await fetch(url, { ...options, cache:"no-store" });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok || typeof data.count !== "number") throw new Error(data.error || "Could not connect to the shared map. Please try again.");
+  const ended = action === "light" && response.status === 409 && data.code === "campaign_ended";
+  if ((!response.ok && !ended) || typeof data.count !== "number") throw new Error(data.error || "Could not connect to the shared map. Please try again.");
   return data;
 }
 
@@ -340,7 +345,9 @@ async function refresh() {
       }
     }
     if (firstLoad && data.incoming && !data.mine) choose(data.incoming);
-    if (firstLoad && validRef.test(ref) && !data.incoming) toast("That pixel link is no longer available. You can still light up your own pixel.");
+    if (firstLoad && validRef.test(ref) && !data.incoming) toast(campaignEnded()
+      ? "That pixel link is no longer available."
+      : "That pixel link is no longer available. You can still light up your own pixel.");
     firstLoad = false;
   } catch (error) {
     if (!ready) $("stats-hint").textContent = error.message;
@@ -348,14 +355,18 @@ async function refresh() {
 }
 async function light() {
   if (!ready || busy) return;
+  if (campaignEnded()) return toast(campaignEndedMessage);
   if (state.mine) return choose(state.mine, true);
-  if (state.count >= capacity) return;
   mutation++;
   busy = true;
   $("light").disabled = true;
   $("light-label").textContent = "Lighting up…";
   try {
-    const data = await request("light");
+    const { code, error, ...data } = await request("light");
+    if (code === "campaign_ended") {
+      apply(data);
+      return toast(error || campaignEndedMessage);
+    }
     if (!data.mine) throw new Error("Could not confirm your pixel. Please try again.");
     hideTip();
     setZoom(1);
@@ -413,6 +424,7 @@ async function editNote(remove) {
   }
 }
 function share(personal) {
+  const ended = campaignEnded();
   const url = new URL(location.href);
   url.search = "";
   url.hash = "";
@@ -421,9 +433,13 @@ function share(personal) {
   $("share-title").textContent = personal ? "Share my pixel" : "Share the activity";
   $("share-help").textContent = isFile
     ? "Your pixel and note are saved on this device. You can copy the message or the 💪💙 emoji."
-    : personal ? "Share this link so a friend can find your pixel." : "Share this link so a friend can light up a pixel on the same map.";
-  $("share-text").value = (personal ? "I lit this pixel on the MEXC map. Add yours and pass it on! 💪💙" : "Light up the MEXC map and pass the blue heart on! 💪💙")
-    + (currentUrl ? "\n" + currentUrl : "");
+    : personal ? "Share this link so a friend can find your pixel." : ended
+      ? "Share this link so a friend can see the completed map."
+      : "Share this link so a friend can light up a pixel on the same map.";
+  const line = ended
+    ? personal ? "I lit this pixel on the MEXC map. See what we made together! 💪💙" : "We lit up the MEXC map together! 💪💙"
+    : personal ? "I lit this pixel on the MEXC map. Add yours and pass it on! 💪💙" : "Light up the MEXC map and pass the blue heart on! 💪💙";
+  $("share-text").value = line + (currentUrl ? "\n" + currentUrl : "");
   $("copy-link").hidden = !currentUrl;
   $("share-dialog").showModal();
 }

@@ -42,6 +42,15 @@ th { color:#c0cee4; } th:first-child,td:first-child { text-align:left; } tr:last
     <form id="sign-out-form" action="/admin/logout" method="post" hidden><button class="signout" type="submit">Sign out</button></form>
   </div>
 </header>
+<section aria-label="Participant export" __PARTICIPANT_EXPORT_HIDDEN__>
+  <div class="section-head">
+    <div>
+      <h2>Participant data</h2>
+      <p class="hint" id="participants-hint">All pixels and their MEXC UIDs, notes and X handles where provided.</p>
+    </div>
+    <a class="download" href="/api/admin/participants.csv" download aria-describedby="participants-hint">Download all participants CSV</a>
+  </div>
+</section>
 <section aria-label="Report filters">
 <form id="filters">
   <label>From (UTC+8)<input type="date" name="from"></label>

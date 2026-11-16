@@ -94,6 +94,20 @@ export async function uidRows(db: D1Database, filters: Filters) {
   return (await query.all<{ uid: string; created: number; mexc_uid_at: number | null; source: Channel }>()).results;
 }
 
+type ParticipantRow = {
+  position: number;
+  created: number;
+  mexc_uid: string | null;
+  message: string | null;
+  handle: string | null;
+};
+
+export async function participantRows(db: D1Database) {
+  const result = await db.prepare(`SELECT position, created, mexc_uid, message, handle
+    FROM relay_pixels ORDER BY position`).all<ParticipantRow>();
+  return result.results;
+}
+
 function rate(count: number, base: number) {
   return base ? (count * 100 / base).toFixed(2) : "";
 }

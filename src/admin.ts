@@ -1,7 +1,7 @@
 import adminPage from "./admin.html";
 import { adminIdentity, type AccessEnv } from "./access";
 import { configuredPassword, passwordSession, signIn, signOut, type AdminPasswordEnv } from "./admin-session";
-import { analyticsReport, channelCsv, readFilters, uidRows } from "./analytics";
+import { analyticsReport, channelCsv, participantRows, readFilters, uidRows } from "./analytics";
 
 type AdminEnv = AccessEnv & AdminPasswordEnv;
 const privateHeaders = {
@@ -11,8 +11,17 @@ const privateHeaders = {
   "Referrer-Policy": "no-referrer",
 };
 
+function csvCell(value: string | number) {
+  let text = String(value);
+  // User-supplied text must not be interpreted as a spreadsheet formula on import.
+  if (typeof value === "string" && /^(?:[\t\r\n]|\s*[=+\-@＝＋－＠])/u.test(value)) {
+    text = "'" + text;
+  }
+  return '"' + text.replace(/"/g, '""') + '"';
+}
+
 function csv(filename: string, rows: Array<Array<string | number>>) {
-  const content = rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(",")).join("\r\n");
+  const content = rows.map(row => row.map(csvCell).join(",")).join("\r\n");
   return new Response("\uFEFF" + content + "\r\n", {
     headers: {
       ...privateHeaders,
@@ -87,7 +96,18 @@ export async function serveAdmin(request: Request, url: URL, env: AdminEnv) {
     if (adminHome && passwordEnabled) return signInPage();
     return new Response("Staff sign-in required.", { status:403, headers:privateHeaders });
   }
-  if (adminHome) return new Response(adminPage, { headers:pageHeaders });
+  if (adminHome) {
+    const page = adminPage.replace("__PARTICIPANT_EXPORT_HIDDEN__", identity.canExportUid ? "" : "hidden");
+    return new Response(page, { headers:pageHeaders });
+  }
+  if (url.pathname === "/api/admin/participants.csv") {
+    if (!identity.canExportUid) return new Response("Participant export is not enabled for this account.", { status: 403, headers: privateHeaders });
+    const rows = await participantRows(env.DB);
+    return csv("mexc-campaign-participants.csv", [
+      ["pixel_position", "mexc_uid", "note", "x_handle", "pixel_lit_at_utc"],
+      ...rows.map(row => [row.position, row.mexc_uid ?? "", row.message ?? "", row.handle ?? "", timestamp(row.created)]),
+    ]);
+  }
   const filters = readFilters(url);
   if (!filters) return Response.json({ error: "Enter a valid date range and channel." }, { status: 400, headers: privateHeaders });
   if (url.pathname === "/api/admin/report") {
